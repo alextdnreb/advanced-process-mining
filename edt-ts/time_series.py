@@ -16,6 +16,7 @@ import pandas as pd
 import numpy as np
 import math
 import warnings
+
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 import sys
 from tsfresh import extract_features, select_features
@@ -24,14 +25,14 @@ import tree_code as tc
 
 def prepare_dataset(df, id, variable_interest):
     df = df.groupby(id).agg({list, "last"})
-    df.columns = [' '.join(col).replace(" ", "") for col in df.columns]
-    df[variable_interest + 'list'] = df[variable_interest + 'list'].apply(np.array)
+    df.columns = [" ".join(col).replace(" ", "") for col in df.columns]
+    df[variable_interest + "list"] = df[variable_interest + "list"].apply(np.array)
     X = []
-    values = df[[variable_interest + 'list']].copy()
-    for v in values[variable_interest + 'list']:
+    values = df[[variable_interest + "list"]].copy()
+    for v in values[variable_interest + "list"]:
         v = v[~np.isnan(v)]
         X.append(v)
-    df[variable_interest + 'list'] = X
+    df[variable_interest + "list"] = X
     df = df.dropna()
     colnames_numerics_only = df.select_dtypes(include=np.number).columns.tolist()
     return df, colnames_numerics_only
@@ -44,18 +45,32 @@ def generate_interval_features(df, n, variable_interest):
         arrayss = np.array_split(x, n)
         return arrayss
 
-    df[new_names] = (df.apply(lambda row: split(row[variable_interest], n), axis=1, result_type="expand"))
+    df[new_names] = df.apply(
+        lambda row: split(row[variable_interest], n), axis=1, result_type="expand"
+    )
     for name in new_names:
-        df[name + "_min"] = df.apply(lambda row: min(row[name], default=row[name]), axis=1)
-        df[name + "_max"] = df.apply(lambda row: max(row[name], default=row[name]), axis=1)
+        df[name + "_min"] = df.apply(
+            lambda row: min(row[name], default=row[name]), axis=1
+        )
+        df[name + "_max"] = df.apply(
+            lambda row: max(row[name], default=row[name]), axis=1
+        )
         df[name + "_mean"] = df.apply(lambda row: np.mean(row[name]), axis=1)
         df[name + "_wthavg"] = df.apply(lambda row: np.average(row[name]), axis=1)
         df[name + "_sum"] = df.apply(lambda row: sum(row[name]), axis=1)
         df[name + "_std"] = df.apply(lambda row: np.std(row[name]), axis=1)
         try:
-            df[name + "_slope"] = df.apply(lambda row: math.sqrt(row[name + "_max"] - row[name + "_min"]) ** 2 + n ** 2,
-                                           axis=1) / n  # wurzel ((max-min)2 + n2)
-            df[name + "_percentchange"] = (df[name + "_max"] - df[name + "_min"]) / df[name + "_min"]  # (max-min)/min
+            df[name + "_slope"] = (
+                df.apply(
+                    lambda row: math.sqrt(row[name + "_max"] - row[name + "_min"]) ** 2
+                    + n**2,
+                    axis=1,
+                )
+                / n
+            )  # wurzel ((max-min)2 + n2)
+            df[name + "_percentchange"] = (df[name + "_max"] - df[name + "_min"]) / df[
+                name + "_min"
+            ]  # (max-min)/min
         except:
             pass
     return df
@@ -80,9 +95,19 @@ def create_latent_variables(candidate_thresholds, df, interest_variable):
     for c in candidate_thresholds:
         data = c[0]
         counter = c[1]
-        expression = interest_variable + "list.count(" + str(data) + ")>=" + str(counter)
+        expression = (
+            interest_variable + "list.count(" + str(data) + ")>=" + str(counter)
+        )
         new_name = str(expression)
-        expression = "sum(i >=" + str(data) + "for i in list(row." + interest_variable + "list))" + ">=" + str(counter)
+        expression = (
+            "sum(i >="
+            + str(data)
+            + "for i in list(row."
+            + interest_variable
+            + "list))"
+            + ">="
+            + str(counter)
+        )
         df[new_name] = df.apply(lambda row: (eval(expression)), axis=1)
         new_names.append(new_name)
     return df, new_names
@@ -100,7 +125,9 @@ def get_distribution(array_ok, array_nok):
             if (value, counter) not in frequencies_average_ok:
                 frequencies_average_ok[value, counter] = 1
             if (value, counter) in frequencies_average_ok:
-                frequencies_average_ok[value, counter] = frequencies_average_ok[value, counter] + 1
+                frequencies_average_ok[value, counter] = (
+                    frequencies_average_ok[value, counter] + 1
+                )
 
     frequencies = []
     for nok in array_nok:
@@ -113,7 +140,9 @@ def get_distribution(array_ok, array_nok):
             if (value, counter) not in frequencies_average_nok:
                 frequencies_average_nok[value, counter] = 1
             if (value, counter) in frequencies_average_nok:
-                frequencies_average_nok[value, counter] = frequencies_average_nok[value, counter] + 1
+                frequencies_average_nok[value, counter] = (
+                    frequencies_average_nok[value, counter] + 1
+                )
 
     diff = []
     for f in frequencies_average_nok.keys():
@@ -123,7 +152,7 @@ def get_distribution(array_ok, array_nok):
 
 
 def get_candidate_variables(df, id):
-    df = df.sort_values(by=[id, 'time:timestamp'])
+    df = df.sort_values(by=[id, "time:timestamp"])
     variable_names = list(df)
     temp_var = []
     cand = []
@@ -160,37 +189,50 @@ def sort_array_ok_nok(df, id, variable_result, variable_interest, result_column)
     array_nok = []
     for uuid in uuids:
         subsetDataFrame = df[df[id] == uuid]
-        values = ((subsetDataFrame[variable_interest].to_numpy()))
+        values = subsetDataFrame[variable_interest].to_numpy()
         values = [v for v in values if not math.isnan(v)]
         result = list(subsetDataFrame[result_column])
         if variable_result in result:
             result = "NOK"
             array_nok.append(values)
             uuids_complete.append(uuid)
-            if (len(values) > 0):
+            if len(values) > 0:
                 candidates[uuid] = [result, values]
         else:
             result = "OK"
             array_ok.append(values)
             uuids_complete.append(uuid)
-            if (len(values) > 0):
+            if len(values) > 0:
                 candidates[uuid] = [result, values]
     print("Array NOK: ", len(array_nok))
     print("Array OK: ", len(array_ok))
     return candidates, array_ok, array_nok, uuids_complete
 
 
-def pipeline(use_case, df, id, variable_result,results,result_column, variable_interest=None, interval=None):
-    candidates, array_ok, array_nok, uuids_complete = sort_array_ok_nok(df, id, variable_result, variable_interest,
-                                                                        result_column)
+def pipeline(
+    use_case,
+    df,
+    id,
+    variable_result,
+    results,
+    result_column,
+    variable_interest=None,
+    interval=None,
+):
+    candidates, array_ok, array_nok, uuids_complete = sort_array_ok_nok(
+        df, id, variable_result, variable_interest, result_column
+    )
     candidate_vars = get_candidate_variables(df, id)
-    candidate_vars = [x for x in candidate_vars if x != result_column]
+    candidate_vars = (
+        [x for x in candidate_vars if x != result_column]
+        if variable_interest == None
+        else [variable_interest]
+    )
     print("Reoccuring variables/Time Series Candidates: ", (candidate_vars))
     num_cols_all = []
     df_og = df
     df_reset = df
     result_column_og = result_column
-
 
     for c in candidate_vars:
         df = df_reset
@@ -198,7 +240,13 @@ def pipeline(use_case, df, id, variable_result,results,result_column, variable_i
         if use_case == "manufacturing":
             df_newFeatures = df[[id, variable_interest]]
             df_newFeatures = df_newFeatures.dropna()
-            y_var = df[[id, result_column_og]].groupby(id).agg('last').dropna().reset_index()
+            y_var = (
+                df[[id, result_column_og]]
+                .groupby(id)
+                .agg("last")
+                .dropna()
+                .reset_index()
+            )
             y_var = y_var[y_var[id].isin(df_newFeatures[id].values)]
             y_var = y_var[result_column_og].to_numpy()
             df, num_cols = prepare_dataset(df, id, variable_interest)
@@ -206,7 +254,7 @@ def pipeline(use_case, df, id, variable_result,results,result_column, variable_i
             df = df.reset_index(drop=True)
 
         else:
-            df_newFeatures = df.select_dtypes(include=['number'])
+            df_newFeatures = df.select_dtypes(include=["number"])
             df, num_cols = prepare_dataset(df, id, variable_interest)
             df = df.dropna(axis=1)
             y_var = df[result_column_og + "last"].to_numpy()
@@ -228,7 +276,9 @@ def pipeline(use_case, df, id, variable_result,results,result_column, variable_i
                 df_new = df_new.dropna()
                 var_interval = df_new.select_dtypes(include=np.number).columns.tolist()
                 var_interval = [x for x in var_interval if x != id]
-                accuracy, used_features = tc.learn_tree(df_new, result_column, var_interval, variable_result, False)
+                accuracy, used_features = tc.learn_tree(
+                    df_new, result_column, var_interval, variable_result, False
+                )
                 if accuracy > accuracy_baseline:
                     accuracy_baseline = accuracy
                     max_i = i
@@ -246,16 +296,26 @@ def pipeline(use_case, df, id, variable_result,results,result_column, variable_i
 
         # pattern based
         candidate_thresholds = get_distribution(array_ok, array_nok)
-        df, var_pattern = create_latent_variables(candidate_thresholds, df, variable_interest)
-        accuracy, var_pattern = tc.learn_tree(df, result_column, var_pattern, variable_result)
+        df, var_pattern = create_latent_variables(
+            candidate_thresholds, df, variable_interest
+        )
+        print("df", df)
+        print("result_column", result_column)
+        print("var_pattern", var_pattern)
+        print("variable_result", variable_result)
+        accuracy, var_pattern = tc.learn_tree(
+            df, result_column, var_pattern, variable_result
+        )
         if accuracy > max_accuracy:
             for var in var_pattern:
                 var_interval.append(var)
         print("Calculated pattern-based features...")
 
-        #global features
+        # global features
         df_newFeatures = df_newFeatures.dropna().reset_index()
-        global_features = generate_global_features(df_newFeatures, y_var, id, variable_interest)
+        global_features = generate_global_features(
+            df_newFeatures, y_var, id, variable_interest
+        )
         df = pd.merge(df, global_features, on=id)
         to_drop = []
         for d in df.columns:
@@ -274,28 +334,31 @@ def pipeline(use_case, df, id, variable_result,results,result_column, variable_i
             df_og = df
             num_cols_all = num_cols
         else:
-            df_og = pd.merge(df, df_og, on=id, how="outer", suffixes=('', '_y'))
+            df_og = pd.merge(df, df_og, on=id, how="outer", suffixes=("", "_y"))
             num_cols_all.extend(num_cols)
 
     tc.learn_tree(df_og, result_column, num_cols_all, variable_result, results, True)
 
-if __name__ == '__main__' :
+
+if __name__ == "__main__":
 
     try:
         use_case = sys.argv[1]
     except:
         use_case = "running"
 
-    #preprocessing happens here
+    # preprocessing happens here
     if use_case == "manufacturing":
         file = "data/manufacturing.csv"
         id = "casename"
-        results = ['nok', 'ok']
+        results = ["nok", "ok"]
         variable_result = "nok"
         result_column = "case:data_success"
         variable_interest = "data_diameter"
         df = pd.read_csv(file)
-        df = df.rename(columns={'sub_concept': 'subname', 'case:concept:name': 'casename'})
+        df = df.rename(
+            columns={"sub_concept": "subname", "case:concept:name": "casename"}
+        )
         subuuids = dict()
         for index, row in df.iterrows():
             if not math.isnan(row.subname):
@@ -323,20 +386,34 @@ if __name__ == '__main__' :
                         uuids[subkey] = key1
                         uuids[subsub] = key1
                         i = i + 1
-        df = df.replace({'casename': uuids})
+        df = df.replace({"casename": uuids})
         df = df.drop(columns="subname")
         df = df.drop(columns="sub_uuid")
-        pipeline(use_case, df, id, variable_result, results, result_column, variable_interest)
-
+        pipeline(
+            use_case, df, id, variable_result, results, result_column, variable_interest
+        )
+    elif use_case == "checkin":
+        file = "data/group5_checkin.csv"
+        id = "case_id"
+        results = ["Pays by card", "Pays cash"]
+        result_column = "activity"
+        variable_result = "Pays by card"
+        variable_interest = "exchange_rate"
+        df = pd.read_csv(file)
+        df = df.rename(columns={"event_order": "time:timestamp"})
+        pipeline(
+            use_case, df, id, variable_result, results, result_column, variable_interest
+        )
     else:
         use_case = "running"
-        file = 'data/running.csv'
+        file = "data/running.csv"
         id = "uuid"
-        results = ['Discard Goods', 'Transfer Goods']
-        result_column = 'event'
-        variable_result = 'Discard Goods'
+        results = ["Discard Goods", "Transfer Goods"]
+        result_column = "event"
+        variable_result = "Discard Goods"
         variable_interest = "temperature"
         df = pd.read_csv(file)
         df = df.rename(columns={"timestamp": "time:timestamp"})
-        pipeline(use_case, df, id, variable_result, results, result_column, variable_interest)
-
+        pipeline(
+            use_case, df, id, variable_result, results, result_column, variable_interest
+        )
