@@ -392,8 +392,12 @@ if __name__ == "__main__":
         pipeline(
             use_case, df, id, variable_result, results, result_column, variable_interest
         )
-    elif use_case == "checkin":
-        file = "data/group5_checkin.csv"
+    elif use_case.startswith("checkin"):
+        file = (
+            "data/group5_checkin.csv"
+            if use_case == "checkin"
+            else "data/group5_checkin_random.csv"
+        )
         id = "case_id"
         results = ["Pays by card", "Pays cash"]
         result_column = "activity"

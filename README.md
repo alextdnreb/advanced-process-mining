@@ -1,7 +1,9 @@
 # advanced-process-mining
 
-This is the repository for Group 5's Advanced Process Mining project in FSS24.
+This is the repository for Group 5's Advanced Process Mining project in FSS24. The code was executed on a Lenovo Notebook with the following specs:
 
+
+![image](specs.png)
 ## Direct replication
 Based on the instructions that can be found in the `README.md` in the `edt-ts` folder, i.e., the code of the original study, we first conducted a direct replication of their approach. Hereby, we note that for us, the author's instructions only worked when we installed the required dependencies via pipenv rather than trying to install the listed requirements directly via pip. 
 
